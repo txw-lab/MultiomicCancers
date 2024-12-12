@@ -1,5 +1,5 @@
 
-setwd('data/pancancer_atac/tumor/combined')
+setwd('tumor')
 set.seed(1001)
 
 #load package
@@ -13,131 +13,241 @@ library(RColorBrewer)
 ###################
 ###umap rna
 ###################
-immune.rna<-readRDS('cells/immune/immune_rna.rds')
-data.rna<-data.frame(immune.rna@reductions$umap@cell.embeddings)
-data.rna$celltype<-immune.rna$subtype
-allcolour=c(colorRampPalette(brewer.pal(7,'Accent'))(10)[-2],'grey')
-p<-ggplot(data.rna, aes(x = UMAP_1, 
-                 y = UMAP_2, 
-                 fill = celltype,
-                 color = celltype)) +
-  geom_point(size = 0.8) +
-  theme_dr()+
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank())+
-  scale_fill_manual(values = allcolour) +
-  scale_color_manual(values = allcolour)
-ggsave('f6/umap_rna.pdf',p,width = 8,height = 6)
-#dotplot
-immune.rna<-subset(immune.rna,subtype !='UD')
-rna_marker=c('MS4A1','CD4','CD8A','APOE','KIT','FCN1','FCGR3A','JCHAIN','FOXP3')
-rna_marker<-factor(rna_marker,levels = rna_marker)
-p<-DotPlot(immune.rna,group.by = 'subtype',features = rna_marker,cols =c('lightgrey','red') )+ coord_flip() + RotatedAxis()
-ggsave('f6/rna_dotplot.pdf',p,width = 10,height = 6)
+colon<-readRDS('cc/data/scrna/cc.rds')
+colon$celltype<-factor(colon$celltype,levels = sort(unique(colon$celltype)))
+Idents(colon)<-'celltype'
+allcolour=c("#FEFB98","#C4AFCB",'#C91889',"#96BF9E",'#A75D2B',"#FDCD8A",'#7FC97F','#866148','#FEE491',"#DBB6AF",'#D63048','#666666')
+umap_cc = colon@reductions$umap@cell.embeddings %>%  
+  as.data.frame() %>% 
+  cbind(cell_type = colon$celltype) 
+p1<-ggplot(umap_cc,aes(x= UMAP_1 , y = UMAP_2 ,color = cell_type)) +  
+  geom_point(size = 0.8 , alpha =1 )  +  
+  scale_color_manual(values = allcolour)+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), 
+        panel.border = element_blank(), 
+        axis.title = element_blank(),  
+        axis.text = element_blank(), 
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = 'white'), 
+        plot.background=element_rect(fill="white"))+
+  theme(
+    legend.title = element_blank(), 
+    legend.key=element_rect(fill='white'), 
+    legend.text = element_text(size=10), 
+    legend.key.size=unit(0.6,'cm') ) +  
+  guides(color = guide_legend(override.aes = list(size=4.5)))+ 
+  geom_segment(aes(x = min(umap_cc$UMAP_1)-2 , y = min(umap_cc$UMAP_2)-2 ,
+                   xend = min(umap_cc$UMAP_1) +1, yend = min(umap_cc$UMAP_2)-2 ),
+               colour = "black", size=1,arrow = arrow(length = unit(0.3,"cm")))+
+  geom_segment(aes(x = min(umap_cc$UMAP_1)-2  , y = min(umap_cc$UMAP_2)-2  ,
+                   xend = min(umap_cc$UMAP_1)-2 , yend = min(umap_cc$UMAP_2) + 1),
+               colour = "black", size=1,arrow = arrow(length = unit(0.3,"cm"))) +
+  annotate("text", x = min(umap_cc$UMAP_1) -0.5, y = min(umap_cc$UMAP_2) -3, label = "UMAP_1",
+           color="black",size = 3, fontface="bold" ) +
+  annotate("text", x = min(umap_cc$UMAP_1) -3, y = min(umap_cc$UMAP_2)-0.5, label = "UMAP_2",
+           color="black",size = 3, fontface="bold" ,angle=90)
+ggsave('f6/rna_umap.pdf',p1,width = 8,height = 6)
 
 ###################
 ###umap atac
 ###################
-immune.atac<-readRDS('cells/immune/immune_atac.rds')
-data.atac<-data.frame(immune.atac@reductions$umap@cell.embeddings)
-data.atac$celltype<-immune.atac$subtype
-allcolour=c(colorRampPalette(brewer.pal(7,'Accent'))(10)[-2],'grey')
-p<-ggplot(data.atac, aes(x = UMAP_1, 
-                 y = UMAP_2, 
-                 fill = celltype,
-                 color = celltype)) +
-  geom_point(size = 0.8) +
-  theme_dr()+
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank())+
-  scale_fill_manual(values = allcolour) +
-  scale_color_manual(values = allcolour)
-ggsave('f6/umap_atac.pdf',p,width = 8,height = 6)
-#coverageplot
-Idents(immune.atac)<-'subtype'
-atac_marker=c('MS4A1','CD4','CD8A','APOE','KIT','FCN1','FCGR3A','JCHAIN','FOXP3')
-for(i in atac_marker){
-  p<-CoveragePlot(immune.atac,i,extend.upstream = 5000,extend.downstream = 5000)
-  p<-p & scale_fill_manual(values =colorRampPalette(brewer.pal(7,'Accent'))(10)[-2] )
-  ggsave(paste0('f6/',as.character(i),'.pdf'),p,width = 8,height = 6)
+colon<-readRDS('cc/data/scatac/cc.rds')
+Idents(colon)<-'celltype'
+allcolour=c("#FEFB98","#C4AFCB",'#C91889',"#96BF9E","#FDCD8A",'#7FC97F','#FEE491',"#DBB6AF",'#D63048')
+umap_cc = colon@reductions$umap@cell.embeddings %>%  
+  as.data.frame() %>% 
+  cbind(cell_type = colon$celltype) 
+p2<-ggplot(umap_cc,aes(x= UMAP_1 , y = UMAP_2 ,color = cell_type)) +  
+  geom_point(size = 0.8 , alpha =1 )  +  
+  scale_color_manual(values = allcolour)+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), 
+        panel.border = element_blank(), 
+        axis.title = element_blank(),  
+        axis.text = element_blank(), 
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = 'white'), 
+        plot.background=element_rect(fill="white"))+
+  theme(
+    legend.title = element_blank(),  
+    legend.key=element_rect(fill='white'), 
+    legend.text = element_text(size=10), 
+    legend.key.size=unit(1,'cm') ) +
+  guides(color = guide_legend(override.aes = list(size=5)))+ 
+  geom_segment(aes(x = min(umap_cc$UMAP_1)-2 , y = min(umap_cc$UMAP_2)-2 ,
+                   xend = min(umap_cc$UMAP_1) +1, yend = min(umap_cc$UMAP_2)-2 ),
+               colour = "black", size=1,arrow = arrow(length = unit(0.3,"cm")))+
+  geom_segment(aes(x = min(umap_cc$UMAP_1)-2  , y = min(umap_cc$UMAP_2)-2  ,
+                   xend = min(umap_cc$UMAP_1)-2 , yend = min(umap_cc$UMAP_2) + 1),
+               colour = "black", size=1,arrow = arrow(length = unit(0.3,"cm"))) +
+  annotate("text", x = min(umap_cc$UMAP_1) -0.5, y = min(umap_cc$UMAP_2) -3, label = "UMAP_1",
+           color="black",size = 3, fontface="bold" ) +
+  annotate("text", x = min(umap_cc$UMAP_1) -3, y = min(umap_cc$UMAP_2)-0.5, label = "UMAP_2",
+           color="black",size = 3, fontface="bold" ,angle=90)
+ggsave('f6/atac_umap.pdf',p2,width = 8,height = 6)
+
+###################
+###dot tfs
+###################
+diffmarker<-readRDS('cc/data/scrna/tumormarker.rds')
+tfs<-c('CEBPG','LEF1','SOX4','TCF7','TEAD4')
+plotdata<-data.frame(matrix(0,nrow = 10,ncol = 4))
+colnames(plotdata)<-c('TF','Avg_log2FC','P.adj','Type')
+plotdata$Type<-rep(c('RNA','Chromvar'),each=5)
+plotdata$TF<-rep(tfs,2)
+for(i in 1:5){
+  plotdata[i,2]<-rnamarker[plotdata[i,1],2]
+  plotdata[i,3]<-rnamarker[plotdata[i,1],5]
 }
-
-###################
-###links barplot
-###################
-#load links data
-ll<-readRDS('peakgenelinks/links_end.rds')
-ll<-subset(ll,peak_promoter==1)
-plotdf<-data.frame(matrix(0,nrow =length(unique(ll$gene_name)),ncol = 2 ))
-colnames(plotdf)<-c('Gene','Linked_CRE')
-plotdf$Gene<-unique(ll$gene_name)
-for(i in 1:nrow(plotdf)){
-  tmp<-subset(ll,gene_name==plotdf$Gene[i])
-  plotdf[i,2]<-nrow(tmp)
+for(i in 6:10){
+  plotdata[i,2]<-rnamarker[plotdata[i,1],2]
+  plotdata[i,3]<-rnamarker[plotdata[i,1],5]
 }
-#plot
-library(ggplot2)
-plotdata<-data.frame(table(plotdf$Linked_CRE))
-plotdata$Var1<-as.numeric(plotdata$Var1)
-plotdata$type<-ifelse(plotdata$Var1>=30,'30',plotdata$Var1)
-plotdata$Freq[30:68]<-sum(plotdata$Freq[30:68])
-plotdata<-plotdata[1:30,]
-plotdata$type<-factor(plotdata$type,levels=c(1:30))
-p<-ggplot(plotdata,aes(x=type,y=Freq))+geom_bar(stat='identity',fill='#000000')+
-  theme_classic()+
-  geom_vline(xintercept = 6,linetype='dashed',size=0.63)
-ggsave('f6/link_barplot.pdf',height = 6,width = 8)
-
-####################
-###random background
-####################
-#load hic data
-df_res<-readRDS('download/hic/res_hic.rds')
-hic<-readRDS('download/hic/hic.rds')
-colnames(df_res)<-colnames(hic)[12:28]
-df_res<-df_res[,c(1:5,11,15,17)]
-#plot
-plotdf1<-data.frame(matrix(0,nrow = 100*8,ncol = 2))
-colnames(plotdf1)<-c('celltype','percent')
-plotdf1$celltype<-rep(colnames(df_res),each=100)
-plotdf1$percent<-c(df_res[-1,]$Mon,df_res[-1,]$Mac0,df_res[-1,]$Mac1,df_res[-1,]$Mac2,
-                   df_res[-1,]$Neu,df_res[-1,]$tCD4,df_res[-1,]$tCD8,df_res[-1,]$tB)
-plotdf1$percent<-plotdf1$percent/53330
-plotdf2<-data.frame(matrix(0,nrow = 8,ncol = 2))
-colnames(plotdf2)<-c('celltype','percent')
-plotdf2$celltype<-colnames(df_res)
-plotdf2$percent<-as.numeric(df_res[1,])/53330
-p<-ggplot(data=plotdf1,aes(x=celltype,y=percent))+
-  geom_violin()+
-  geom_point(data=plotdf2,aes(x=celltype,y=percent))+
-  theme_bw()
-ggsave('f6/links_background.pdf',p,height = 6,width = 8)
+p<-ggplot(plotdata, aes(x = Type, y = TF, color = P.adj)) + 
+  geom_point(aes(size = Avg_log2FC)) + 
+  scale_color_distiller(palette = "RdBu") + 
+  theme_classic() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        axis.line=element_line(size = .3, colour="black"))
+ggsave('f6/dot_rna_chrom.pdf',p,width = 3,height = 4)
 
 ###################
-###link plot
+###metaprogram tfs
 ###################
-#load links data
-ll<-readRDS('peakgenelinks/links_end.rds')
-ll<-subset(ll,peak_promoter==1)
-ll_mrc1<-subset(ll,gene_name=='MRC1')
-ll_trem2<-subset(ll,gene_name=='TREM2')
-conns<-readRDS('cicero/immune/conns_600.rds')
-conns<-subset(conns,abs(coaccess)>0.2)
-peakanno<-readRDS('chipseeker/peakanno.rds')
-peakanno<-subset(peakanno,type=='Promoter')
-conns<-subset(conns,Peak2 %in% rownames(peakanno))
-test.df <- data.frame(peakSite = conns$Peak2, 
-                      peak2gene = peakanno[as.character(conns$Peak2),'SYMBOL'])
-new_conns <- cbind(conns, test.df)
-new_conns<-subset(new_conns,peak2gene %in% c('MRC1','TREM2'))
-new_conns<-subset(new_conns,Peak1 %in% c(ll_trem2$peakName,ll_mrc1$peakName))
-new_conns<-subset(new_conns,Peak2 %in% c('chr6-41161877-41162160','chr10-17808668-17809793'))
-links <- ConnectionsToLinks(conns = new_conns)
-Links(immune.atac) <- links
+motif_data<-readRDS('cc/chromvar/cc_motif_data.rds')
+meta1_data<-motif_data[unique(meta1$peakName),c('CEBPG','LEF1','SOX4','TCF7','TEAD4')]
+meta2_data<-motif_data[unique(meta2$peakName),c('CEBPG','LEF1','SOX4','TCF7','TEAD4')]
+meta3_data<-motif_data[unique(meta3$peakName),c('CEBPG','LEF1','SOX4','TCF7','TEAD4')]
+meta4_data<-motif_data[unique(meta4$peakName),c('CEBPG','LEF1','SOX4','TCF7','TEAD4')]
+colSums(meta1_data)/nrow(meta1_data)
+colSums(meta2_data)/nrow(meta2_data)
+colSums(meta3_data)/nrow(meta3_data)
+colSums(meta4_data)/nrow(meta4_data)
+plotdata<-data.frame(matrix(0,ncol = 4,nrow = 20))
+colnames(plotdata)<-c('Program','TF','Percent')
+plotdata$Program<-rep(c('metaProgram1','metaProgram2','metaProgram3','metaProgram4'),each=5)
+plotdata$TF<-rep(c('CEBPG','LEF1','SOX4','TCF7','TEAD4'),4)
+plotdata$TF<-factor(plotdata$TF,levels = c('CEBPG','LEF1','SOX4','TCF7','TEAD4'))
+plotdata$Percent<-c(0.03651685 ,0.30617978 ,0.19101124 ,0.29119850 ,0.11985019 ,
+                    0.03707224 ,0.19961977 ,0.15304183 ,0.16920152 ,0.13498099,
+                    0.04454343 ,0.15144766 ,0.13140312 ,0.14699332 ,0.10244989,
+                    0.03755869 ,0.19014085 ,0.16666667 ,0.18544601 ,0.13380282)
+plotdata$value<-c('**','***','***','***','*',
+                  '**','***','***','***','***',
+                  '**','**','ns','***','ns',
+                  '*','***','***','***','**')
+p<-ggplot(data = plotdata, aes(x = Program, y = Percent, fill =  TF,label=value)) +
+  geom_bar(stat = 'identity', width = .7,position = position_dodge(0.85)) +
+  theme_set(theme_bw())+
+  theme(panel.grid.major=element_blank(),panel.grid.minor=element_blank())+
+  theme(panel.border = element_blank())+
+  theme(axis.line = element_line(colour = "black", size = 1 ))+
+  scale_fill_manual(values = colorRampPalette(brewer.pal(12, "Accent"))(11))+
+  geom_text(aes(label = value), position = position_dodge(0.9), vjust = -0.8)+
+  ylim(c(0,0.35))+
+  theme(axis.text.x = element_text(angle=30,vjust = 0.5,hjust = 0.5,size = 8 ))
+ggsave('f6/meta_tf.pdf',p,height = 3.5,width = 4.5)
+
+###################
+###footprinting
+###################
 #plot
-p1<-CoveragePlot(immune.atac,'TREM2',extend.upstream = 180000,extend.downstream = 150000)
-p2<-CoveragePlot(immune.atac,'MRC1',extend.upstream = 70000,extend.downstream = 10000)
-p1<-p1 & scale_fill_manual(values =colorRampPalette(brewer.pal(7,'Accent'))(10)[-2] )
-p2<-p2 & scale_fill_manual(values =colorRampPalette(brewer.pal(7,'Accent'))(10)[-2] )
-ggsave('f6/TREM2_coverageplot.pdf',p1,height = 6,width = 8)
-ggsave('f6/MRC1_coverageplot.pdf',p2,height = 6,width = 8)
+cc<-readRDS('cc/data/tf/cc.rds')
+DefaultAssay(cc)<-'peaks'
+Idents(cc)<-'celltype'
+for(i in c('CEBPG','LEF1','SOX4','TCF7','TEAD4')){
+  p<- PlotFootprint(cc, features = i)
+  ggsave(paste0('f6/',gsub('::','',i),'.pdf'),p,width = 8,height = 6)
+}
+#normalized value
+cebpg<-readRDS('cc/data/tf/tf_cebpg.rds')
+lef1<-readRDS('cc/data/tf/tf_lef1.rds')
+sox4<-readRDS('cc/data/tf/tf_sox4.rds')
+tcf7<-readRDS('cc/data/tf/tf_tcf7.rds')
+tead4<-readRDS('cc/data/tf/tf_tead4.rds')
+tf_p<-rbind(cebpg,lef1,sox4,tcf7,tead4)
+tf_p<-subset(tf_p,class=='Observed' )
+df1<-data.frame(matrix(0,nrow = 5,ncol=2))
+colnames(df1)<-c('TF','P_value')
+df1$TF<-c('CEBPG','LEF1','SOX4','TCF7','TEAD4')
+for(i in 1:5){
+  t<-wilcox.test(subset(tf_p,feature==df1[i,1] & group=='Tumor cell')[,4],
+                 subset(tf_p,feature==df1[i,1] & group=='Epithelial')[,4])
+  df1[i,2]<-t$p.value
+}
+write.csv(df1,'tables/tf_250.csv',quote = F,row.names = F)
+
+tf_p<-rbind(cebpg,lef1,sox4,tcf7,tead4)
+tf_p<-subset(tf_p,class=='Observed' & abs(position)<=100)
+df2<-data.frame(matrix(0,nrow = 5,ncol=2))
+colnames(df2)<-c('TF','P_value')
+df2$TF<-c('CEBPG','LEF1','SOX4','TCF7','TEAD4')
+for(i in 1:5){
+  t<-wilcox.test(subset(tf_p,feature==df2[i,1] & group=='Tumor cell')[,4],
+                 subset(tf_p,feature==df2[i,1] & group=='Epithelial')[,4])
+  df2[i,2]<-t$p.value
+}
+write.csv(df2,'tables/tf_250.csv',quote = F,row.names = F)
+
+###################
+###cell similarity
+###################
+CancerCell<-readRDS('cc/nmf/CancerCell.rds')
+CancerCell.four.matrix <- GetAssayData(CancerCell, slot = "scale.data" ,assay.type = "SCT")
+cluster.order <- sapply(c("A001-C-007_", "CRC1_", "CRC3_"), function(x){
+  index <- grep(x, colnames(CancerCell.four.matrix))
+  patient.matrix <- CancerCell.four.matrix[,index]
+  corrMatrix <- (1- cor(patient.matrix, method="pearson"))
+  hc <- hclust(as.dist(corrMatrix), method="ward.D")
+  row_dend <- dendsort(hc)
+  return(colnames(patient.matrix)[row_dend$order])
+})
+cluster.order <- unlist(cluster.order)
+index <- match(cluster.order, colnames(CancerCell.four.matrix))
+CancerCell.four.matrix <- CancerCell.four.matrix[,index]
+cell.similarity <- cor(CancerCell.four.matrix, method="pearson")
+saveRDS(cell.similarity, file = "cell.similarity.rds")
+diag(cell.similarity) <- 0
+diag(cell.similarity) <- max(cell.similarity)
+pdf("f6/cell.similarity.pdf")
+row_split <- gsub("_\\d+", "", names(cluster.order))
+column_split <- gsub("_\\d+", "", names(cluster.order))
+Heatmap(cell.similarity, cluster_rows = F, border = TRUE, row_split = row_split, column_split = column_split, row_gap = unit(0, "mm"), column_gap = unit(0, "mm"), width = unit(12, "cm"), height = unit(12, "cm"), cluster_columns = F, show_column_names = F, show_row_names = F, use_raster = T, heatmap_legend_param = list(title = "Correlation coeficient"))
+dev.off()
+
+################################
+###pathway plot
+################################
+res1<-readRDS('cc/nmf/res1_enrich.rds')
+res2<-readRDS('cc/nmf/res2_enrich.rds')
+res3<-readRDS('cc/nmf/res3_enrich.rds')
+res4<-readRDS('cc/nmf/res4_enrich.rds')
+path1<-c('GOBP_REGULATION_OF_WNT_SIGNALING_PATHWAY','GOBP_NEGATIVE_REGULATION_OF_WNT_SIGNALING_PATHWAY','GOBP_CELL_CELL_SIGNALING_BY_WNT',
+         'GOBP_CANONICAL_WNT_SIGNALING_PATHWAY','KEGG_PHOSPHATIDYLINOSITOL_SIGNALING_SYSTEM')
+path2<-c('KEGG_ADHERENS_JUNCTION','GOBP_CELL_GROWTH','GOBP_CELL_JUNCTION_ASSEMBLY','GOBP_ACTIN_FILAMENT_BASED_MOVEMENT',
+         'GOBP_INTEGRIN_MEDIATED_SIGNALING_PATHWAY')
+path3<-c('REACTOME_EUKARYOTIC_TRANSLATION_ELONGATION','KEGG_RIBOSOME','REACTOME_SELENOAMINO_ACID_METABOLISM',
+         'GOBP_CYTOPLASMIC_TRANSLATION','REACTOME_TRANSLATION')
+path4<-c('HALLMARK_E2F_TARGETS','HALLMARK_G2M_CHECKPOINT','GOBP_CHROMOSOME_SEGREGATION',
+         'GOBP_DNA_REPLICATION','HALLMARK_MITOTIC_SPINDLE')
+res1_path1<-res1[path1,]
+res2_path2<-res2[path2,]
+res3_path3<-res3[path3,]
+res4_path4<-res4[path4,]
+plotdata<-rbind(res1_path1,res2_path2,res3_path3,res4_path4)
+plotdata$Count<-ifelse(plotdata$Count>=15,15,plotdata$Count)
+plotdata$pro<-c(rep('metaProgram1',5),rep('metaProgram2',5),rep('metaProgram3',5),rep('metaProgram4',5))
+plotdata$Description<-factor(plotdata$Description,levels = plotdata$Description)
+p = ggplot(data = plotdata,aes(x = pro, y = Description))+
+  geom_point(aes(size = Count,color = p.adjust))+
+  theme_bw()+
+  scale_colour_gradient(low = "green",high = "red")+
+  scale_y_discrete(labels = function(x) str_wrap(x,width = 40))+
+  labs(x = "metaProgram",y = "",title = "Dotplot",
+       color = expression(p.adjust),size = "Count")+
+  theme(axis.title = element_text(size = 12),axis.text = element_text(size = 10),
+        plot.title = element_text(size = 14,hjust = 0.5,face = "bold"),
+        legend.title = element_text(size = 11),legend.text = element_text(size = 10),
+        axis.text.x = element_text(angle = 60,hjust = 1))
+ggsave('f6/metaprogram.pdf',p,width = 6.5,height = 6)
