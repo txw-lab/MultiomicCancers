@@ -9,364 +9,291 @@ library(ggplot2)
 library(tidydr)
 library(dplyr)
 library(RColorBrewer)
+library(tidyverse)
+library(ragg)
+library(ggpp)
 
 ###################
-###tf heatmap
+###gpl plots
 ###################
-#cc
-cc<-readRDS('cc/chromvar/cc.rds')
-cc_motifs<-c('ASCL1(var.2)','CDX1','FOXA1','GATA2','GRHL1','HNF1A','HNF4A','HOXA10','LEF1','TCF7','ZEB1',
-             'TWIST1','TEAD4','NFATC2','ZBTB26','ZBTB18',
-             'SOX2','SOX8',
-             'CEBPA','EHF','ELF3','IKZF1','SPI1','SPIB','SPIC',
-             'ELK4','RUNX3','ETV1','NFYA',
-             'IRF2','POU1F1','POU2F1')
-cc_data<-cc@assays$chromvar@data
-rownames(cc_data)<-cc@assays$peaks@motifs@motif.names[rownames(cc_data)]
-cc_data<-cc_data[unique(cc_motifs),]
-cc_df<-data.frame(matrix(0,nrow = nrow(cc_data),ncol = 6))
-colnames(cc_df)<-c('Tumor cell','Fibroblast','Endothelial','Myeloid cell','T cell','B cell')
-rownames(cc_df)<-rownames(cc_data)
-meta<-cc@meta.data
-for(i in 1:6){
-  tmp<-subset(meta,celltype==colnames(cc_df)[i])
-  cc_df[,i]<-rowMeans(cc_data[,rownames(tmp)])
-}
-library(pheatmap)
-p<-pheatmap(t(scale(t(cc_df))),show_colnames = T,cluster_rows = F,cluster_cols = F,
-            border_color = NA)
-ggsave('f5/cc_tf.pdf',p,height = 6,width = 2.5)
+bcc_ll<-readRDS('bcc/peakgenelinks/links_end.rds')
+bcc_ll<-subset(bcc_ll,peak_promoter==1)
+cc_ll<-readRDS('cc/peakgenelinks/links_end.rds')
+cc_ll<-subset(cc_ll,peak_promoter==1)
+ec_ll<-readRDS('ec/peakgenelinks/links_end.rds')
+ec_ll<-subset(ec_ll,peak_promoter==1)
+oc_ll<-readRDS('oc/peakgenelinks/links_end.rds')
+oc_ll<-subset(oc_ll,peak_promoter==1)
+plc_ll<-readRDS('plc/peakgenelinks/links_end.rds')
+plc_ll<-subset(plc_ll,peak_promoter==1)
+rcc_ll<-readRDS('rcc/peakgenelinks/links_end.rds')
+rcc_ll<-subset(rcc_ll,peak_promoter==1)
+lc_ll<-readRDS('lc/peakgenelinks/links_end.rds')
+lc_ll<-subset(lc_ll,peak_promoter==1)
+bc_ll<-readRDS('bc/peakgenelinks/links_end.rds')
+bc_ll<-subset(bc_ll,peak_promoter==1)
 
-#ec
-ec<-readRDS('ec/chromvar/ec.rds')
-ec_motifs<-c('ASCL1(var.2)','FOXA1','GRHL1','HNF1A','HNF4A','HOXA1','LEF1','NFIC','SOX2','TCF7','TEAD4','TFAP2A',
-             'ARGFX','CDX1','HAND2','HOXA10','TWIST1','ZBTB18',
-             'EBF1','EBF3','PBX2',
-             'STAT1','STAT3',
-             'CEBPA','EHF','ELF3','IKZF1','SPI1','SPIB','SPIC','ZKSCAN5',
-             'ELK4','EOMES','RUNX2','RUNX3',
-             'IRF4','POU1F1',
-             'GATA1','GATA1::TAL1')
-ec_data<-ec@assays$chromvar@data
-rownames(ec_data)<-ec@assays$peaks@motifs@motif.names[rownames(ec_data)]
-ec_data<-ec_data[unique(ec_motifs),]
-ec_df<-data.frame(matrix(0,nrow = nrow(ec_data),ncol = 8))
-colnames(ec_df)<-c('Tumor cell','Fibroblast','Myofibroblast','Endothelial','Myeloid  cell','T cell','B cell','Mast')
-rownames(ec_df)<-rownames(ec_data)
-meta<-ec@meta.data
+peaks_bcc<-readRDS('bcc/data/scatac/peaks_bcc.rds')
+peaks_bcc<-subset(peaks_bcc,gene %in% bcc_ll$peakName)
+peaks_bc<-readRDS('bc/data/scatac/peaks_bc.rds')
+peaks_bc<-subset(peaks_bc,gene %in% bc_ll$peakName)
+peaks_cc<-readRDS('cc/data/scatac1/peaks_cc.rds')
+peaks_cc<-subset(peaks_cc,gene %in% cc_ll$peakName)
+peaks_plc<-readRDS('plc/data/scatac/peaks_plc.rds')
+peaks_plc<-subset(peaks_plc,gene %in% plc_ll$peakName)
+peaks_lc<-readRDS('lc/data/scatac/peaks_lc.rds')
+peaks_lc<-subset(peaks_lc,gene %in% lc_ll$peakName)
+peaks_rcc<-readRDS('rcc/data/scatac2/peaks_rcc.rds')
+peaks_rcc<-subset(peaks_rcc,gene %in% rcc_ll$peakName)
+peaks_ec<-readRDS('ec/data/scatac/peaks_ec.rds')
+peaks_ec<-subset(peaks_ec,gene %in% ec_ll$peakName)
+peaks_oc<-readRDS('oc/data/scatac/peaks_oc.rds')
+peaks_oc<-subset(peaks_oc,gene %in% oc_ll$peakName)
+
+df_list<-list()
 for(i in 1:8){
-  tmp<-subset(meta,celltype==colnames(ec_df)[i])
-  ec_df[,i]<-rowMeans(ec_data[,rownames(tmp)])
+  tumor<-c('BC','BCC','CC','EC','LC','OC','PLC','RCC')[i]
+  peaks<-list(peaks_bc,peaks_bcc,peaks_cc,peaks_ec,peaks_lc,peaks_oc,peaks_plc,peaks_rcc)[[i]]
+  tmp<-list()
+  for(j in unique(peaks$cluster)){
+    tmp[[j]]<-subset(peaks,cluster==j)[,'gene']
+  }
+  df_list[[tumor]]<-tmp
 }
-library(pheatmap)
-p<-pheatmap(t(scale(t(ec_df))),show_colnames = T,cluster_rows = F,cluster_cols = F,
-            border_color = NA)
-ggsave('f5/ec_tf.pdf',p,height = 6,width = 2.5)
 
-#oc
-oc<-readRDS('oc/chromvar/oc.rds')
-oc_motifs<-c('ASCL1(var.2)','GRHL1','NFIC','PAX1','SIX1','SOX2','TEAD4','TFAP2A','ZEB1',
-             'ARGFX','HAND2','TWIST1','ZBTB18',
-             'EBF1','EBF3','NR3C1','NR4A1',
-             'STAT1','STAT3',
-             'CEBPA','EHF','ELF3','SPI1','SPIB','SPIC',
-             'ELK4','EOMES','ETV1','RUNX2','RUNX3',
-             'IRF4','POU1F1')
-oc_data<-oc@assays$chromvar@data
-rownames(oc_data)<-oc@assays$peaks@motifs@motif.names[rownames(oc_data)]
-oc_data<-oc_data[unique(oc_motifs),]
-oc_df<-data.frame(matrix(0,nrow = nrow(oc_data),ncol = 7))
-colnames(oc_df)<-c('Tumor cell','Fibroblast','Myofibroblast','Endothelial','Myeloid cell','T cell','Plasma')
-rownames(oc_df)<-rownames(oc_data)
-meta<-oc@meta.data
-for(i in 1:7){
-  tmp<-subset(meta,celltype==colnames(oc_df)[i])
-  oc_df[,i]<-rowMeans(oc_data[,rownames(tmp)])
-}
-library(pheatmap)
-p<-pheatmap(t(scale(t(oc_df))),show_colnames = T,cluster_rows = F,cluster_cols = F,
-            border_color = NA)
-ggsave('f5/oc_tf.pdf',p,height = 6,width = 2.5)
+#correlation
+meta<-readRDS('combined/conserved/meta.rds')
+plotdata<-data.frame(matrix(0,nrow = 8,ncol = 3))
+colnames(plotdata)<-c('Type','Cell','GPL')
+plotdata$Type<-c('BCC','CC','EC','OC','PLC','RCC','LC','BC')
+plotdata$Peak<-c(12214,27409,29250,13031,14231,26925,23868,30000)
+plotdata$GPL<-c(11955,38292,39640,15202,10140,13368,18976,20109)
+p<-ggscatter(plotdata, x = "Cell", y = "GPL",
+             add = "reg.line", conf.int = TRUE,    
+             add.params = list(fill = "lightgray"))+
+  stat_cor(method = "pearson", 
+           label.x = 15000, label.y = 50000)
+ggsave('f4/correlation_gpl.pdf',p,width = 4,height = 3)
 
-#rcc
-rcc<-readRDS('rcc/chromvar/rcc.rds')
-rcc_motifs<-c('HNF1A','HNF4A','NFIA','PAX3','POU4F1','TEAD4','VAX1','ZNF24','ARGFX',
-              'EBF1','EBF3',
-              'STAT1','STAT3','SOX2','SOX4',
-              'CEBPA','EHF','ELF3','SPI1','SPIB','SPIC',
-              'EOMES','RUNX2','RUNX3','TBX1',
-              'ASCL1(var.2)','FIGLA','IRF4','MYOD1','SNAI2','POU1F1','POU2F1')
-rcc_data<-rcc@assays$chromvar@data
-rownames(rcc_data)<-rcc@assays$peaks@motifs@motif.names[rownames(rcc_data)]
-rcc_data<-rcc_data[unique(rcc_motifs),]
-rcc_df<-data.frame(matrix(0,nrow = nrow(rcc_data),ncol = 6))
-colnames(rcc_df)<-c('Tumor cell','Myofibroblast','Endothelial','Myeloid cell','T cell','Plasma')
-rownames(rcc_df)<-rownames(rcc_data)
-meta<-rcc@meta.data
-for(i in 1:6){
-  tmp<-subset(meta,celltype==colnames(rcc_df)[i])
-  rcc_df[,i]<-rowMeans(rcc_data[,rownames(tmp)])
-}
-library(pheatmap)
-p<-pheatmap(t(scale(t(rcc_df))),show_colnames = T,cluster_rows = F,cluster_cols = F,
-            border_color = NA)
-ggsave('f5/rcc_tf.pdf',p,height = 6,width = 2.5)
+#barplot
+bardata<-c(20109,11955,38292,39640,18976,15202,10140,13368)
+names(bardata)<-c('BC','BCC','CC','EC','LC','OC','PLC','RCC')
+p<-barplot(bardata,col = rgb(0.2,0.4,0.6,0.6),horiz = T,las=1)
+ggsave('f4/barplot_gpl.pdf',p,width = 5,height = 4)
 
-#plc
-plc<-readRDS('plc/chromvar/plc.rds')
-plc_motifs<-c('CUX1','FOXA1','GATA2','HNF1A','HNF4A','NEUROD1','PAX3','TCF7L1','TEAD4',
-              'EBF1','EBF3',
-              'SOX2','SOX8','SOX9',
-              'CEBPA','EHF','ELF3','ETV4','IKZF1','SPI1','SPIB','SPIC',
-              'EOMES','RUNX2','RUNX3',
-              'ASCL1(var.2)','IRF2','MYF5','SNAI1','TCF3',
-              'POU1F1','POU2F1','POU5F1','POU5F1B')
-plc_data<-plc@assays$chromvar@data
-rownames(plc_data)<-plc@assays$peaks@motifs@motif.names[rownames(plc_data)]
-plc_data<-plc_data[unique(plc_motifs),]
-plc_df<-data.frame(matrix(0,nrow = nrow(plc_data),ncol = 7))
-colnames(plc_df)<-c('Tumor cell','Myofibroblast','Endothelial','Myeloid cell','T cell','Plasma','B cell')
-rownames(plc_df)<-rownames(plc_data)
-meta<-plc@meta.data
-for(i in 1:7){
-  tmp<-subset(meta,celltype==colnames(plc_df)[i])
-  plc_df[,i]<-rowMeans(plc_data[,rownames(tmp)])
-}
-library(pheatmap)
-p<-pheatmap(t(scale(t(plc_df))),show_colnames = T,cluster_rows = F,cluster_cols = F,
-            border_color = NA)
-ggsave('f5/plc_tf.pdf',p,height=6,width=2.5)
-
-#bcc
-bcc<-readRDS('bcc/chromvar/bcc.rds')
-bcc_motifs<-c('ALX3','EMX1','GRHL1','HOXD3','LBX1','MEOX1','NFIA','ZNF24','PHOX2A','TEAD4','TFAP2A','TP53','VAX1',
-              'CEBPA','EBF3','NFATC2','POU4F1','TWIST1',
-              'EHF','ELF1','IKZF1','SPI1','SPIB','SPIC',
-              'EOMES','MGA','TBR1','TBX1',
-              'POU1F1','POU2F1','POU3F1','POU5F1',
-              'IRF1')
-bcc_data<-bcc@assays$chromvar@data
-rownames(bcc_data)<-bcc@assays$peaks@motifs@motif.names[rownames(bcc_data)]
-bcc_data<-bcc_data[unique(bcc_motifs),]
-bcc_df<-data.frame(matrix(0,nrow = nrow(bcc_data),ncol = 9))
-colnames(bcc_df)<-c('Tumor cell','Myofibroblast','Endothelial','Myeloid cell','NK','T cell','Plasma','B cell','Melanocyte')
-rownames(bcc_df)<-rownames(bcc_data)
-meta<-bcc@meta.data
-for(i in 1:9){
-  tmp<-subset(meta,celltype==colnames(bcc_df)[i])
-  bcc_df[,i]<-rowMeans(bcc_data[,rownames(tmp)])
-}
-library(pheatmap)
-p<-pheatmap(t(scale(t(bcc_df))),show_colnames = T,cluster_rows = F,cluster_cols = F,
-            border_color = NA)
-ggsave('f5/bcc_tf.pdf',p,height=6,width=2.5)
-
-#lc
-lc<-readRDS('lc/chromvar/lc.rds')
-lc_motifs<-c('ASCL1(var.2)','FIGLA','GRHL1','FOXA1','HNF1A','MYOD1','NFIA','ZNF24','NKX2-2','TP53','ZEB1',
-             'TEAD1','TEAD2','TEAD3','TEAD4','RUNX2',
-             'SOX2','SOX8','SOX9','SOX13','SOX14',
-             'CEBPA','ETV1','EHF','ELF1','IKZF1','SPI1','SPIB','SPIC',
-             'IRF1','POU1F1','POU2F1','POU3F1','POU5F1')
-lc_data<-lc@assays$chromvar@data
-rownames(lc_data)<-lc@assays$peaks@motifs@motif.names[rownames(lc_data)]
-lc_data<-lc_data[unique(lc_motifs),]
-lc_df<-data.frame(matrix(0,nrow = nrow(lc_data),ncol = 8))
-colnames(lc_df)<-c('Tumor cell','Fibroblast','Myofibroblast','Endothelial','Myeloid cell','Plasma','B cell','T cell')
-rownames(lc_df)<-rownames(lc_data)
-meta<-lc@meta.data
+#cell type gpl
+cells<-c('Tumor cell','T cell','Myeloid cell','Endothelial','Myofibroblast','Fibroblast',
+         'B cell','Plasma')
+plotdata<-data.frame(row.names = c('Cancer','Celltype','N'))
 for(i in 1:8){
-  tmp<-subset(meta,celltype==colnames(lc_df)[i])
-  lc_df[,i]<-rowMeans(lc_data[,rownames(tmp)])
-}
-library(pheatmap)
-p<-pheatmap(t(scale(t(lc_df))),show_colnames = T,cluster_rows = F,cluster_cols = F,
-            border_color = NA)
-ggsave('f5/lc_tf.pdf',p,height = 6,width = 2.5)
-
-#bc
-bc<-readRDS('bc/chromvar/bc.rds')
-bc_motifs<-c('ASCL1(var.2)','FOXA1','GRHL1','MYOD1','SCRT1','TCF3','TFCP2','ZEB1',
-             'NFATC2','TEAD4','TWIST1',
-             'EBF1','SOX8','TP53','NFIA',
-             'SOX8','SOX9','SOX15',
-             'CEBPA','EHF','ELF1','ETV1','IKZF1','SPI1','USF1','ZKSCAN5',
-             'IRF2','IRF4','IRF4','IRF8')
-bc_data<-bc@assays$chromvar@data
-rownames(bc_data)<-bc@assays$peaks@motifs@motif.names[rownames(bc_data)]
-bc_data<-bc_data[unique(bc_motifs),]
-bc_df<-data.frame(matrix(0,nrow = nrow(bc_data),ncol = 6))
-colnames(bc_df)<-c('Tumor cell','Fibroblast','Myofibroblast','Endothelial','Myeloid cell','Lymphocyte')
-rownames(bc_df)<-rownames(bc_data)
-meta<-bc@meta.data
-for(i in 1:6){
-  tmp<-subset(meta,celltype==colnames(bc_df)[i])
-  bc_df[,i]<-rowMeans(bc_data[,rownames(tmp)])
-}
-library(pheatmap)
-p<-pheatmap(t(scale(t(bc_df))),show_colnames = T,cluster_rows = F,cluster_cols = F,
-            border_color = NA)
-ggsave('f5/bc_tf.pdf',p,height=6,width=2.5)
-
-##################
-###motif umap
-##################
-cc<-readRDS('cc/chromvar/cc.rds')
-ec<-readRDS('ec/chromvar/ec.rds')
-oc<-readRDS('oc/chromvar/oc.rds')
-rcc<-readRDS('rcc/chromvar/rcc.rds')
-bcc<-readRDS('bcc/chromvar/bcc.rds')
-plc<-readRDS('plc/chromvar/plc.rds')
-Idents(cc)<-'celltype'
-Idents(ec)<-'celltype'
-Idents(oc)<-'celltype'
-Idents(rcc)<-'celltype'
-Idents(bcc)<-'celltype'
-Idents(plc)<-'celltype'
-Idents(lc)<-'celltype'
-Idents(bc)<-'celltype'
-umap_cc = cc@reductions$umap@cell.embeddings %>%  
-  as.data.frame() %>% 
-  cbind(cell_type = cc$celltype) 
-umap_ec = ec@reductions$umap@cell.embeddings %>%  
-  as.data.frame() %>% 
-  cbind(cell_type = ec$celltype) 
-umap_oc = oc@reductions$umap@cell.embeddings %>%  
-  as.data.frame() %>% 
-  cbind(cell_type = oc$celltype) 
-umap_rcc = rcc@reductions$umap@cell.embeddings %>%  
-  as.data.frame() %>% 
-  cbind(cell_type = rcc$celltype) 
-umap_bcc = bcc@reductions$umap@cell.embeddings %>%  
-  as.data.frame() %>% 
-  cbind(cell_type = bcc$celltype) 
-umap_plc = plc@reductions$umap@cell.embeddings %>%  
-  as.data.frame() %>% 
-  cbind(cell_type = plc$celltype)
-umap_bc = bc@reductions$umap@cell.embeddings %>%  
-  as.data.frame() %>% 
-  cbind(cell_type = bc$celltype) 
-umap_lc = lc@reductions$umap@cell.embeddings %>%  
-  as.data.frame() %>% 
-  cbind(cell_type = lc$celltype) 
-allcolour_cc=c("#FEFB98","#C4AFCB","#96BF9E","#FDCD8A","#FEE491","#DBB6AF",'#D63048')
-allcolour_ec=c("#FEFB98","#C4AFCB","#96BF9E",'#A75D2B',"#FDCD8A","#7FC97F","#DBB6AF",'#D63048')
-allcolour_oc=c("#C4AFCB","#96BF9E","#FDCD8A","#7FC97F",'#FEE491',"#DBB6AF",'#D63048')
-allcolour_rcc=c("#FEFB98","#C4AFCB","#A75D2B","#FDCD8A","#7FC97F",'#FEE491',"#DBB6AF",'#D63048')
-allcolour_bcc=c("#FEFB98","#C4AFCB","#96BF9E","#A75D2B","#769AA8","#FDCD8A","#7FC97F","#C91889",'#FEE491',"#DBB6AF",'#D63048')
-allcolour_plc=c("#FEFB98","#C4AFCB","#FDCD8A","#7FC97F",'#FEE491',"#DBB6AF",'#D63048')
-allcolour_lc=c("#FEFB98","#C4AFCB",'#96BF9E',"#FDCD8A","#7FC97F",'#FEE491',"#DBB6AF",'#D63048')
-allcolour_bc=c("#C4AFCB",'#96BF9E','#F3BD92',"#FDCD8A","#7FC97F",'#D63048')
-
-#plot
-for(umap in c(umap_cc,umap_ec,umap_oc,umap_rcc,umap_plc,umap_bcc,umap_lc,umap_bc)){
-  p<-ggplot(umap,aes(x= UMAP_1 , y = UMAP_2 ,color = cell_type)) +  
-    geom_point(size = 1 , alpha =1 )  +  
-    scale_color_manual(values = allcolour)+
-    theme(panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(), 
-          panel.border = element_blank(), 
-          axis.title = element_blank(),  
-          axis.text = element_blank(), 
-          axis.ticks = element_blank(),
-          panel.background = element_rect(fill = 'white'), 
-          plot.background=element_rect(fill="white"))+
-    theme(
-      legend.title = element_blank(), 
-      legend.key=element_rect(fill='white'), 
-      legend.text = element_text(size=20), 
-      legend.key.size=unit(1,'cm') ) +  
-    guides(color = guide_legend(override.aes = list(size=5)))+ 
-    geom_segment(aes(x = min(umap$UMAP_1) , y = min(umap$UMAP_2) ,
-                     xend = min(umap$UMAP_1) +3, yend = min(umap$UMAP_2) ),
-                 colour = "black", size=1,arrow = arrow(length = unit(0.3,"cm")))+ 
-    geom_segment(aes(x = min(umap$UMAP_1)  , y = min(umap$UMAP_2)  ,
-                     xend = min(umap$UMAP_1) , yend = min(umap$UMAP_2) + 3),
-                 colour = "black", size=1,arrow = arrow(length = unit(0.3,"cm"))) +
-    annotate("text", x = min(umap$UMAP_1) +1.5, y = min(umap$UMAP_2) -1, label = "UMAP_1",
-             color="black",size = 3, fontface="bold" ) + 
-    annotate("text", x = min(umap$UMAP_1) -1, y = min(umap$UMAP_2) + 1.5, label = "UMAP_2",
-             color="black",size = 3, fontface="bold" ,angle=90) +
-    theme(legend.position = "none")
-  ggsave('f5/Umap.atac.pdf',p,height = 6,width = 8)
-}
-
-###################
-###tead rna
-###################
-plotdata<-data.frame(TF=c('TEAD1','TEAD2','TEAD3','TEAD4'),T_Value=c(99.321,30.383,47.559,34.272))
-p1<-ggplot(data = plotdata, aes(x = TF, y = T_Value,fill=TF)) +
-  geom_bar(stat = 'identity', width = .5,position = position_dodge(0.85))+
-  theme_test()+
-  scale_fill_manual(values = colorRampPalette(brewer.pal(8, "Accent"))(6)) +
-  theme(legend.position = 'none')+
-  labs(title = 'Gene Expression')
-ggsave('f5/tead_rna.pdf',p1,width = 5,height = 2.5)
-
-###################
-###tead chromvar
-###################
-plotdata<-data.frame(TF=c('TEAD1','TEAD2','TEAD3','TEAD4'),T_Value=c(227.87,207.77,213.08,219.45))
-p2<-ggplot(data = plotdata, aes(x = TF, y = T_Value,fill=TF)) +
-  geom_bar(stat = 'identity', width = .5,position = position_dodge(0.85))+
-  theme_test()+
-  scale_fill_manual(values = colorRampPalette(brewer.pal(8, "Accent"))(6)) +
-  theme(legend.position = 'none')+
-  labs(title = 'Chromvar Score')
-ggsave('f5/tead_chromvar.pdf',p2,width = 5,height = 2.5)
-
-###################
-###tead pathway
-###################
-bcc_res<-readRDS('combined/tf/all/bcc_res.rds')
-cc_res<-readRDS('combined/tf/all/cc_res.rds')
-ec_res<-readRDS('combined/tf/all/ec_res.rds')
-oc_res<-readRDS('combined/tf/all/oc_res.rds')
-plc_res<-readRDS('combined/tf/all/plc_res.rds')
-rcc_res<-readRDS('combinedtf/all/rcc_res.rds')
-lc_res<-readRDS('combinedtf/all/lc_res.rds')
-bc_res<-readRDS('combined/tf/all/bc_res.rds')
-plotdata<-data.frame(matrix(0,ncol = 5,nrow = 160))
-colnames(plotdata)<-c('Pathway','TF','Cancer','N_gene','Pvalue')
-plotdata$Pathway<-rep(c('hippo signaling','canonical Wnt signaling pathway',
-                        'transforming growth factor beta receptor signaling pathway',
-                        'epithelial cell development','cell-cell junction organization'),32)
-plotdata$TF<-rep(rep(c(1,2,3,4),each=5),8)
-plotdata$Cancer<-rep(c(1,2,3,4,5,6,7,8),each=20)
-for(i in 1:160){
-  tmp_cancer=list(bc_res,bcc_res,cc_res,ec_res,lc_res,oc_res,plc_res,rcc_res)[[plotdata[i,3]]]
-  tmp_tf=tmp_cancer[[plotdata[i,2]]]
-  tmp_res<-subset(tmp_tf,Description==plotdata[i,1])
-  if(nrow(tmp_res)==1){
-    plotdata[i,4]<-tmp_res[1,9]
-    plotdata[i,5]<-tmp_res[1,5]
+  x<-c('BCC','CC','EC','OC','PLC','RCC','LC','BC')[i]
+  tmp<-df_list[[i]]
+  for(j in names(tmp)){
+    if(j %in% cells){
+      tmp_plot<-data.frame(c(x,j,length(unique(tmp[[j]]))))
+      plotdata<-cbind(plotdata,tmp_plot)
+    }
   }
 }
-plotdata$TF<-rep(rep(c('TEAD1','TEAD2','TEAD3','TEAD4'),each=5),8)
-plotdata$Cancer<-rep(c('BC','BCC','CC','EC','LC','OC','PLC','RCC'),each=20)
-plotdata$Pathway<-rep(c('Hippo signaling','Wnt signaling',
-                        'TGF-β signaling',
-                        'epithelial cell development','cell-cell junction organization'),32)
-plotdata$N_gene<-ifelse(plotdata$N_gene==0,NA,plotdata$N_gene)
-p<-ggplot(plotdata, aes(x = TF, y = Pathway, color = Pvalue)) + 
-  geom_point(aes(size = N_gene)) + 
-  scale_color_distiller(palette = "RdBu") + 
-  theme_classic() + 
-  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
-        axis.line=element_line(size = .3, colour="black")) + 
-  facet_grid(~ Cancer, scales = "free_x",space = 'free')
-ggsave('f5/tead_pathway.pdf',p,width = 10,height = 3)
+plotdata<-data.frame(t(plotdata))
+plotdata$N<-as.numeric(plotdata$N)
+p<-ggplot(plotdata,aes(x=Celltype,y=N))+
+  geom_boxplot(aes(fill=Celltype),fill=NA)+
+  geom_jitter(aes(color=Cancer),size=3)+
+  scale_color_manual(values=c("#C91889","#C4AFCB",'#96BF9E',"#A75D2B",'#769AA8',"#FDCD8A","#D63048","#666666"))+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 30, hjust = 1, vjust = 1,size = 11))
+ggsave('f4/celltype_gpl.pdf',p,width = 5,height = 3)
 
 ###################
-###tead footprinting
+###heatmap
 ###################
-combined<-readRDS('combined/tf/combined.rds')
-meta<-combined@meta.data
-meta<-subset(meta,!sample %in% paste0('brca',1:16))
-combined<-combined[,rownames(meta)]
-DefaultAssay(combined)<-'peaks'
-Idents(combined)<-'celltype'
-for(i in c('TEAD1','TEAD2','TEAD3','TEAD4')){
-  p<- PlotFootprint(combined, features = i)
-  ggsave(paste0('f5/',gsub('::','',i),'.pdf'),p,width = 8,height = 6)
+data<-readRDS('combined/conserved/data.rds')
+p1<-data[[1]]
+p2<-data[[2]]
+p3<-data[[3]]
+plotdata1<-data[[4]]
+plotdata2<-data[[5]]
+plotdata3<-data[[6]]
+anno_col_all<-data[[7]]
+plotdata_all<-rbind(plotdata1[p1$tree_row$order,rownames(anno_col_all)],
+                    plotdata2[p2$tree_row$order,rownames(anno_col_all)],
+                    plotdata3[p3$tree_row$order,rownames(anno_col_all)])
+pall<-pheatmap(plotdata_all,cluster_cols = F,show_colnames = F,
+                 show_rownames = F,cluster_rows = F,annotation_names_col = T,
+                 annotation_col = anno_col_all,
+                 gaps_row=c(),color = colorRampPalette(c('#48025b','#1f938a','#e7dd1b'))(100),
+                 gaps_col = c(1884,3227,3291,3350,3771,3812,4094,4581,4969))
+ggsave('f4/pheatmap_all.png',pall,width = 8,height = 10)
+
+###################
+###tumor great
+###################
+great_tumor<-read.delim('combined/conserved/diffpeak/tumor_greatExportAll.tsv',skip = 3)
+great_tumor$Desc<-factor(great_tumor$Desc,levels = unique(great_tumor$Desc))
+p<-ggplot(great_tumor[1:10,],aes(SetCov,Desc)) + 
+  geom_point(aes(size=ObsRegions,color=BinomBonfP)) +
+  scale_color_gradient(low="red",high = "green") + 
+  labs(color="BinomBonfP",size="ObsRegions",
+       x="SetCov",y="Top 10 GO terms",title="GREAT enrichment") + 
+  theme_bw()
+ggsave('f4/tumor_great.pdf',p,width = 5,height = 3.5)
+
+###################
+###overlapping paths
+###################
+tumor_res<-readRDS('combined/conserved/tumor_res_list.rds')
+bcc_tumor<-subset(tumor_res[[1]],pvalue<0.05)
+cc_tumor<-subset(tumor_res[[2]],pvalue<0.05)
+ec_tumor<-subset(tumor_res[[3]],pvalue<0.05)
+oc_tumor<-subset(tumor_res[[4]],pvalue<0.05)
+plc_tumor<-subset(tumor_res[[5]],pvalue<0.05)
+rcc_tumor<-subset(tumor_res[[6]],pvalue<0.05)
+lc_tumor<-subset(tumor_res[[7]],pvalue<0.05)
+bc_tumor<-subset(tumor_res[[8]],pvalue<0.05)
+paths<-Reduce(intersect,list(bcc_tumor$ID,cc_tumor$ID,ec_tumor$ID,oc_tumor$ID,
+                             plc_tumor$ID,rcc_tumor$ID,lc_tumor$ID,bc_tumor$ID))
+circle_data<-data.frame(GO=rep(paths,8),
+                        label=rep( 1:8,each=12),
+                        Pvalue=0,
+                        Count=0,
+                        log10_Pvalue=0,
+                        group=rep(c('A','B','C','D','E','F','G','H','I','J','K','L'),8))
+for(i in 1:nrow(circle_data)){
+  tmp<-list(bcc_tumor,cc_tumor,ec_tumor,oc_tumor,plc_tumor,rcc_tumor,lc_tumor,bc_tumor)[[circle_data[i,2]]]
+  circle_data[i,3]<-tmp[circle_data[i,1],5]
+  circle_data[i,4]<-tmp[circle_data[i,1],9]
 }
+circle_data$label<-rep( c('BCC','CC','EC','OC','PLC','RCC','LC','BC'),each=12)
+datagroup <- circle_data$group %>% unique()
+allplotdata <- tibble('group' = datagroup,
+                      'label' = paste0('empty_individual_', seq_along(datagroup)),
+                      'Pvalue' = 0,
+                      'Count'=0) %>% 
+  bind_rows(circle_data) %>% arrange(group) %>% mutate(xid = 1:n()) %>% 
+  mutate(angle = 90 - 360 * (xid - 0.5) / n()) %>% 
+  mutate(hjust = ifelse(angle < -90, 1, 0)) %>% 
+  mutate(angle = ifelse(angle < -90, angle+180, angle)) 
+firstxid <- which(str_detect(allplotdata$label, pattern = "empty_individual")) 
+segment_data <- data.frame('from' = firstxid + 1,
+                           'to' = c(c(firstxid - 1)[-1], nrow(allplotdata)),
+                           'label' = datagroup) %>% 
+  mutate(labelx = as.integer((from + to)/2))
+coordy <- tibble('coordylocation' = seq(from = min(allplotdata$Count), to = max(allplotdata$Count), 10),
+                 'coordytext' = as.character(round(coordylocation, 2)),
+                 'x' = 1)
+griddata <- expand.grid('locationx' = firstxid[-1], 'locationy' = coordy$coordylocation)
+p1<-ggplot() +   coord_polar() +  theme_void() +
+  geom_bar(data = allplotdata, aes(x = xid, y = Count, fill = Pvalue), stat = 'identity') + 
+  scale_fill_gradient2(low = "yellow",mid='#DBB6AF',high = "#4166AD",midpoint = 4.202505e-04)+
+  geom_text(data = allplotdata %>% filter(!str_detect(label, pattern = "empty_individual")), 
+            aes(x = xid, label = label, y = Count+10, angle = angle, hjust = hjust),
+            color="black", fontface="bold",alpha=0.6, size=1.5) + 
+  geom_segment(data = segment_data, aes(x = from, xend = to), y = -5, yend=-5) + 
+  geom_text(data = segment_data, aes(x = labelx, label = label), y = -10,size=3) + 
+  geom_segment(data = griddata, 
+               aes(x = locationx-0.5, xend = locationx + 0.5, y = locationy, yend = locationy),
+               colour = "grey", alpha=0.8, size=0.6) + 
+  scale_x_continuous(expand = c(0, 0)) + 
+  scale_y_continuous(limits = c(-30,100)) +
+  geom_text(data = coordy, aes(x = x, y = coordylocation, label = coordytext),
+            color="black", size=2 , angle=0, fontface="bold") 
+ggsave('f4/circleplot.pdf',p1,width = 9,height = 7)
+
+table_plot<-data.frame(matrix(0,nrow = 12,ncol = 3))
+table_plot$X1<-c('A','B','C','D','E','F','G','H','I','J','K','L')
+table_plot$X2<-paths
+table_plot$X3<-c('cell-cell junction organization','cell-cell junction assembly',
+                 'apical junction assembly','tight junction organization',
+                 'tight junction assembly','bicellular tight junction assembly',
+                 'neural tube development','tube formation',
+                 'epithelial tube formation','epithelial cell development',
+                 'regulation of cell morphogenesis','cell differentiation involved in embryonic placenta development')
+p2<-ggtexttable(table_plot, rows = NULL,cols = NULL,
+                theme = ttheme(
+                  colnames.style = colnames_style(color = "white", fill = "#8cc257")
+                )
+)
+ggsave('f4/paths.pdf',p2,width = 6,height = 9)
+
+###################
+##motif enrich
+###################
+combined_atac<-readRDS('combined/chromvar/combined.rds')
+peak_all<-StringToGRanges(rownames(combined_atac))
+tumor_peak<-ChIPseeker::readPeakFile('combined/conserved/diffpeak/tumor_peak.bed')
+tumor_peak<-peak_all[unique(findOverlaps(peak_all,tumor_peak)@from)]
+t_peak<-ChIPseeker::readPeakFile('combined/conserved/diffpeak/t_peak.bed')
+t_peak<-peak_all[unique(findOverlaps(peak_all,t_peak)@from)]
+mye_peak<-ChIPseeker::readPeakFile('combined/conserved/diffpeak/mye_peak.bed')
+mye_peak<-peak_all[unique(findOverlaps(peak_all,mye_peak)@from)]
+fibro_peak<-ChIPseeker::readPeakFile('combined/conserved/diffpeak/fibro_peak.bed')
+fibro_peak<-peak_all[unique(findOverlaps(peak_all,fibro_peak)@from)]
+endo_peak<-ChIPseeker::readPeakFile('combined/conserved/diffpeak/endo_peak.bed')
+endo_peak<-peak_all[unique(findOverlaps(peak_all,endo_peak)@from)]
+myof_peak<-ChIPseeker::readPeakFile('combined/conserved/diffpeak/myof_peak.bed')
+myof_peak<-peak_all[unique(findOverlaps(peak_all,myof_peak)@from)]
+tumor_motif<-FindMotifs(combined_atac,GRangesToString(tumor_peak))
+t_motif<-FindMotifs(combined_atac,GRangesToString(t_peak))
+mye_motif<-FindMotifs(combined_atac,GRangesToString(mye_peak))
+fibro_motif<-FindMotifs(combined_atac,GRangesToString(fibro_peak))
+endo_motif<-FindMotifs(combined_atac,GRangesToString(endo_peak))
+myof_motif<-FindMotifs(combined_atac,GRangesToString(myof_peak))
+#plot
+plot_tumor<-tumor_motif[1:15,]
+plot_t<-t_motif[1:15,]
+plot_mye<-mye_motif[1:15,]
+plot_fibro<-fibro_motif[1:15,]
+plot_endo<-endo_motif[1:15,]
+plot_myof<-myof_motif[1:15,]
+plotdata<-data.frame(matrix(0,nrow = 90,ncol = 4))
+colnames(plotdata)<-c('Motif','CellType','Rank','P_value')
+plotdata$Motif<-c(plot_tumor$motif.name,plot_t$motif.name,plot_mye$motif.name,
+                  plot_fibro$motif.name,plot_endo$motif.name,plot_myof$motif.name)
+plotdata$CellType<-rep(c('Tumor cell','T cell','Myeloid cell','Fibroblast','Endothelial','Myofibroblast'),each=15)
+plotdata$Rank<-rep(1:15,6)
+plotdata$P_value<-c(plot_tumor$pvalue,plot_t$pvalue,plot_mye$pvalue,
+                    plot_fibro$pvalue,plot_endo$pvalue,plot_myof$pvalue)
+plotdata$tf<-plotdata$Motif
+plotdata$Motif<-paste0(plotdata$CellType,'_',plotdata$Motif)
+labels<-plotdata$tf
+names(labels)<-plotdata$Motif
+plotdata$Motif<-factor(plotdata$Motif,levels = unique(plotdata$Motif))
+p<-ggplot(plotdata, aes(x = Motif, y = Rank, color = P_value)) + 
+  geom_point() + 
+  scale_color_distiller(palette = "RdBu") + 
+  #scale_size(limits = c(1, 6), range = c(0.5, 3.5)) + 
+  theme_classic() + 
+  scale_x_discrete("Motif")+
+  scale_x_discrete("Motif", labels = labels)+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+        axis.line=element_line(size = .3, colour="black")) + 
+  facet_grid(~ CellType, scales = "free_x",space = 'free')
+ggsave('f4/dot_motif.pdf',p,width = 13,height = 4)
+
+###################
+###klf4/fos/spib/elk4
+###################
+combined_atac<-readRDS('combined/scatac/combined.rds')
+p1<-MotifPlot(combined_atac,c('MA0039.4'))
+p2<-MotifPlot(combined_atac,c('MA0081.2'))
+p3<-MotifPlot(combined_atac,c('MA0476.1'))
+p4<-MotifPlot(combined_atac,c('MA0076.2'))
+ggsave('f4/klf4_motif.pdf',p1,width = 4,height = 2)
+ggsave('f4/spib_motif.pdf',p2,width = 4,height = 2)
+ggsave('f4/fos_motif.pdf',p3,width = 4,height = 2)
+ggsave('f4/elk4_motif.pdf',p4,width = 4,height = 2)
+
+###################
+###klf4-related pathways
+###################
+gene_go<-readRDS('combined/conserved/klf4_res.rds')
+p<-ggplot(gene_go[c('GO:0010464','GO:2001053','GO:0097152',"GO:0002053",'GO:0010463','GO:0014031',
+                    'GO:0048762','GO:0001837','GO:0010718','GO:0060485'),],aes(Count,Description)) + 
+  geom_point(aes(size=Count,color=pvalue)) +
+  scale_color_gradient(low="red",high = "green") + 
+  labs(color="P_value",size="Count",
+       x="Count",y="Top 10 GO terms",title="GO enrichment") + 
+  theme_bw()+
+  scale_y_discrete(labels=function(x) str_wrap(x, width=20))
+ggsave('f4/klf4_emt.pdf',p,width = 3.5,height = 5)
