@@ -1,5 +1,5 @@
 
-setwd('data/pancancer_atac/tumor/combined/')
+setwd('tumor')
 set.seed(1001)
 
 #load package
@@ -9,86 +9,155 @@ library(ggplot2)
 library(tidydr)
 library(dplyr)
 
-#######################
-###umap tumorcell
-########################
+###################
+###peak annotation
+###################
 #load data
-tumor<-readRDS('cells/tumor/tumor.rds')
-p<-DimPlot(tumor,group.by = 'tumorcell')
-ggsave(p,'f2/TumorUmap.pdf',height = 6,width = 8)
+cc_peak<-readRDS('cc/chipseeker/peakanno.rds')
+cc_peak<-data.frame(type=unique(crc_peak$type),counts=as.vector(table(crc_peak$type)[unique(crc_peak$type)]),tumor=rep('CC',7))
+oc_peak<-readRDS('oc/chipseeker/peakanno.rds')
+oc_peak<-data.frame(type=unique(oc_peak$type),counts=as.vector(table(oc_peak$type)[unique(oc_peak$type)]),tumor=rep('OC',7))
+ec_peak<-readRDS('ec/chipseeker/peakanno.rds')
+ec_peak<-data.frame(type=unique(ec_peak$type),counts=as.vector(table(ec_peak$type)[unique(ec_peak$type)]),tumor=rep('EC',7))
+rcc_peak<-readRDS('rcc/chipseeker/peakanno.rds')
+rcc_peak<-data.frame(type=unique(rcc_peak$type),counts=as.vector(table(rcc_peak$type)[unique(rcc_peak$type)]),tumor=rep('RCC',7))
+lc_peak<-readRDS('lc/chipseeker/peakanno.rds')
+lc_peak<-data.frame(type=unique(lc_peak$type),counts=as.vector(table(lc_peak$type)[unique(lc_peak$type)]),tumor=rep('LC',7))
+bc_peak<-readRDS('bc/chipseeker/peakanno.rds')
+bc_peak<-data.frame(type=unique(bc_peak$type),counts=as.vector(table(bc_peak$type)[unique(bc_peak$type)]),tumor=rep('BC',7))
+combined_peak<-readRDS('chipseeker/peakanno.rds')
+combined_peak<-data.frame(type=unique(combined_peak$type),counts=as.vector(table(combined_peak$type)[unique(combined_peak$type)]),tumor=rep('All_sample',7))
+#plot
+plotdf<-rbind(bc_peak,bcc_peak,crc_peak,oc_peak,ec_peak,lc_peak,plc_peak,rcc_peak,combined_peak)
+p<-ggplot(plotdf, aes
+          (tumor, weight = counts, fill = type)) +
+  geom_bar(color = "white", width = .7, position = 'stack') +
+  labs( y = 'Counts') +
+  scale_fill_brewer(palette = "Set3")+
+  scale_y_continuous(expand = c(0,0)) +
+  theme_classic()
+ggsave('f2/Chipseeker_anno.pdf',p,height = 5.5,width = 3.5)
 
 ################
-###peak heatmap
+###peak barplot
 ################
-#load data
-tumor<-readRDS('cells/tumor/tumor.rds')
-peaks_tumor<-readRDS('cells/tumor/peaks_tumor.rds')
-peaks_tumor<-subset(peaks_tumor,p_val_adj<0.05)
-meta<-tumor@meta.data
-#plot
-library(pheatmap)
-peakdata<-tumor@assays$peaks@data
-peakdata<-peakdata[unique(peaks_tumor$gene),]
-plotdata<-data.frame(matrix(0,nrow = nrow(peakdata),ncol = length(unique(peaks_tumor$cluster))))
-rownames(plotdata)<-rownames(peakdata)
-colnames(plotdata)<-unique(peaks_tumor$cluster)
-for(i in colnames(plotdata)){ 
-  tmp<-subset(meta,tumorcell==i)
-  plotdata[,i]<-rowMeans(peakdata[,rownames(tmp)])
-}
-p<-pheatmap(t(scale(t(plotdata))),show_rownames = F,cluster_rows = F,cluster_cols = T)
-ggsave('f2/peak_heatmap.pdf',p,width = 4,height = 4)
+peaks_bcc<-readRDS('bcc/data/scatac/peaks_bcc.rds')
+peaks_cc<-readRDS('cc/data/scatac/peaks_cc.rds')
+peaks_ec<-readRDS('ec/data/scatac/peaks_ec.rds')
+peaks_oc<-readRDS('oc/data/scatac/peaks_oc.rds')
+peaks_rcc<-readRDS('rcc/data/scatac/peak_rcc.rds')
+peaks_plc<-readRDS('plc/data/scatac/peaks_plc.rds')
+peaks_lc<-readRDS('lc/data/scatac/peak_lc.rds')
+peaks_bc<-readRDS('bc/data/scatac/peak_bc.rds')
+bcc_df<-data.frame(table(peaks_bcc$cluster))
+bcc_df$Tumor<-'BCC'
+cc_df<-data.frame(table(peaks_cc$cluster))
+cc_df$Tumor<-'CC'
+ec_df<-data.frame(table(peaks_ec$cluster))
+ec_df$Tumor<-'EC'
+oc_df<-data.frame(table(peaks_oc$cluster))
+oc_df$Tumor<-'OC'
+plc_df<-data.frame(table(peaks_plc$cluster))
+plc_df$Tumor<-'PLC'
+rcc_df<-data.frame(table(peaks_rcc$cluster))
+rcc_df$Tumor<-'RCC'
+lc_df<-data.frame(table(peaks_lc$cluster))
+lc_df$Tumor<-'LC'
+bc_df<-data.frame(table(peaks_bc$cluster))
+bc_df$Tumor<-'BC'
+plotdata<-rbind(bc_df,bcc_df,cc_df,ec_df,lc_df,oc_df,plc_df,rcc_df)
+colnames(plotdata)<-c('Celltype','Number','Tumor')
+p<-ggplot(plotdata,aes(x=Celltype,y=Number,fill=Tumor))+
+  geom_bar(stat = 'identity')+
+  theme_test()+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 11)) + 
+  facet_grid(~ Tumor, scales = "free_x",space = 'free')
+ggsave('f2/Diff_peak.pdf',p,width = 12,height = 4)
 
 ###################
 ###coverageplot
 ###################
-#load data
-peaks<-readRDS('cells/tumor/peaks_tumor.rds')
-peakanno<-readRDS('chipseeker/peakanno.rds')
-peaks$closegene<-peakanno[peaks$gene,'SYMBOL']
-peaks$type<-peakanno[peaks$gene,'type']
-peaks<-subset(peaks,p_val_adj<0.05)
-#plot
-gr<-StringToGRanges(c('chr8-128531703-128542048','chr8-127875000-127878526','chr8-127389527-127458527'))
-gr$color<-'yellow'
-p<-CoveragePlot(tumor,'MYC',extend.upstream = 500000,extend.downstream = 900000,
-                region.highlight = gr)
-ggsave('f2/myc.pdf',p,width = 6,height = 4)
-gr<-StringToGRanges(c('chr8-133255001-133263233','chr8-133244401-133251916','chr8-133301001-133304600','chr8-133214802-133219600','chr8-133320000-133321000','chr8-133287484-133300561'))
-gr$color<-'yellow'
-p<-CoveragePlot(tumor,'NDRG1',extend.upstream = 40000,extend.downstream = 40000,region.highlight = gr)
-ggsave('f2/ndrg1.pdf',p,width = 6,height = 4)
+snp_cc<-readRDS('cc/gwas/download/snp.rds')
+tumor_atac<-readRDS('cells/tumor/tumor.rds')
+fibro_atac<-readRDS('cells/fibro/fibro.rds')
+cc<-readRDS('cc/data/scatac/cc.rds')
+Idents(tumor_atac)<-'tumorcell'
+Idents(fibro_atac)<-'tumorcell'
+Idents(cc)<-'celltype'
+p1<-CoveragePlot(cc,'chr10-112518672-112519744',extend.downstream = 10000,extend.upstream = 10000)
+p2<-CoveragePlot(cc,'chr3-64266065-64266806',extend.upstream = 10000,extend.downstream = 10000)
+p3<-CoveragePlot(tumor_atac,'chr10-112518672-112519744',extend.downstream = 10000,extend.upstream = 10000)
+p4<-CoveragePlot(fibro_atac,'chr3-64266065-64266806',extend.upstream = 10000,extend.downstream = 10000)
+ggsave('f2/tcf7l2_cc.pdf',p1,width = 6,height = 4.5)
+ggsave('f2/tcf7l2_tumor.pdf',p3,width = 6,height = 4.5)
+ggsave('f2/prickle2_cc.pdf',p2,width = 6,height = 4.5)
+ggsave('f2/prickle2_fibro.pdf',p4,width = 6,height = 4.5)
 
-#####################
-###ndrg1 link plot
-#####################
-#load data
-gtf_file = 'E:/gene_id_file/Homo_sapiens.GRCh38.104.chr.gtf'
-gene_anno <- rtracklayer::readGFF(gtf_file)
-# rename some columns to match requirements
-gene_anno$chromosome <- paste0('chr',gene_anno$seqid)
-gene_anno$gene <- gene_anno$gene_id
-gene_anno$transcript <- gene_anno$transcript_id
-gene_anno$symbol <- gene_anno$gene_name
-gene_anno<-subset(gene_anno,type=='exon')
-gene_anno<-gene_anno[!is.na(gene_anno$symbol),]
-gene_anno<-gene_anno[!is.na(gene_anno$transcript),]
-gene_anno<-gene_anno[!is.na(gene_anno$gene),]
-#cicero
-conns<-readRDS('cicero/conns_600.rds')
-conns<-subset(conns,abs(coaccess)>0.2)
-peakanno<-readRDS('chipseeker/peakanno.rds')
-peakanno<-subset(peakanno,type=='Promoter')
-conns<-subset(conns,Peak2 %in% rownames(peakanno))
-test.df <- data.frame(peakSite = conns$Peak2, 
-                      peak2gene = peakanno[as.character(conns$Peak2),'SYMBOL'])
-new_conns <- cbind(conns, test.df)
-chia_conns <-  data.frame(Peak1 = c("chr8-133320367-133321081"), 
-                          Peak2 = c("chr8-133298299-133298499"),
-                          coaccess = c(0.3203461))
-#plot
-p<-plot_connections(chia_conns,'chr8',133275000,133325000,gene_model = gene_anno,
-                 collapseTranscripts = "longest",include_axis_track = T,
-                 gene_model_color = 'black',
-                 coaccess_cutoff = 0)
-ggsave('f2/cancer.pdf',p,width = 6,height = 6)
+###################
+###ldsc
+###################
+###cc
+files<-list.files('/cc/gwas/ldsc')
+df_enrich<-data.frame()
+for(i in files){
+  tmp_files<-list.files(paste0('cc/gwas/ldsc/',i))
+  tmp_files<-tmp_files[grep('results',tmp_files)]
+  if(grepl('results',i)){
+    tmp<-read.delim(paste0('cc/gwas/ldsc/',i))
+    tmp_df<-data.frame(cell=tmp[,1],disease=rep(strsplit(i,'\\.')[[1]][1],nrow(tmp)),pvalue=tmp[,4])
+    df_enrich<-rbind(df_enrich,tmp_df)}
+}
+plotdata<-df_enrich %>% mutate(text = case_when(
+  pvalue < 0.0001 ~ "****",pvalue<0.001 ~ "***",pvalue<0.01 ~"**",pvalue<0.05 ~"*"))
+plotdata<-plotdata[plotdata$cell!='all',]
+plotdata$log10P<- -log10(plotdata$pvalue)
+p1<-ggplot(plotdata,aes(y=disease,x=log10P,color=cell))+
+  geom_point()+
+  geom_vline(xintercept = 1.30103,linetype='dashed')+
+  scale_color_manual(values=c("#FEFB98","#C4AFCB","#96BF9E","#FDCD8A","#FEE491","#DBB6AF",'#D63048'))+
+  theme_test()
+ggsave('f2/cc_ldsc.pdf',p1,width =4.3 ,height = 3)
+
+###oc
+files<-list.files('oc/gwas/ldsc')
+df_enrich<-data.frame()
+for(i in files){
+  tmp_files<-list.files(paste0('oc/gwas/ldsc/',i))
+  tmp_files<-tmp_files[grep('results',tmp_files)]
+  if(grepl('results',i)){
+    tmp<-read.delim(paste0('oc/gwas/ldsc/',i))
+    tmp_df<-data.frame(cell=tmp[,1],disease=rep(strsplit(i,'\\.')[[1]][1],nrow(tmp)),pvalue=tmp[,4])
+    df_enrich<-rbind(df_enrich,tmp_df)}
+}
+plotdata<-df_enrich %>% mutate(text = case_when(
+  pvalue < 0.0001 ~ "****",pvalue<0.001 ~ "***",pvalue<0.01 ~"**",pvalue<0.05 ~"*"))
+plotdata<-plotdata[plotdata$cell!='all',]
+plotdata$log10P<- -log10(plotdata$pvalue)
+p2<-ggplot(plotdata,aes(y=disease,x=log10P,color=cell))+
+  geom_point()+
+  geom_vline(xintercept = 1.30103,linetype='dashed')+
+  scale_color_manual(values=c("#C4AFCB","#96BF9E","#FDCD8A","#7FC97F",'#FEE491',"#DBB6AF",'#D63048'))+
+  theme_test()
+ggsave('f2/oc_ldsc.pdf',p2,width = 4.3,height = 3)
+
+###bc
+files<-list.files('bc/gwas/ldsc')
+df_enrich<-data.frame()
+for(i in files){
+  tmp_files<-list.files(paste0('bc/gwas/ldsc/',i))
+  tmp_files<-tmp_files[grep('results',tmp_files)]
+  if(grepl('results',i)){
+    tmp<-read.delim(paste0('bc/gwas/ldsc/',i))
+    tmp_df<-data.frame(cell=tmp[,1],disease=rep(strsplit(i,'\\.')[[1]][1],nrow(tmp)),pvalue=tmp[,4])
+    df_enrich<-rbind(df_enrich,tmp_df)}
+}
+plotdata<-df_enrich %>% mutate(text = case_when(
+  pvalue < 0.0001 ~ "****",pvalue<0.001 ~ "***",pvalue<0.01 ~"**",pvalue<0.05 ~"*"))
+plotdata<-plotdata[plotdata$cell!='all',]
+plotdata$log10P<- -log10(plotdata$pvalue)
+p3<-ggplot(plotdata,aes(y=disease,x=log10P,color=cell))+
+  geom_point()+
+  geom_vline(xintercept = 1.30103,linetype='dashed')+
+  scale_color_manual(values=c("#C4AFCB","#96BF9E","#FDCD8A","#7FC97F",'#FEE491',"#DBB6AF",'#D63048'))+
+  theme_test()
+ggsave('f2/bc_ldsc.pdf',p3,width = 4.3,height = 3)
